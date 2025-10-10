@@ -1,4 +1,4 @@
-# Lab Assignment 2: Exploring Post-Quantum Cryptography with liboqs
+# Exploring Post-Quantum Cryptography with liboqs
 
 ## Objective
 The goal of this assignment is to:
