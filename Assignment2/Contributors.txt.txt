@@ -1,0 +1,17 @@
+Task contributors and details:
+
+1.) Created README.md file and Kem.c
+
+  ~ MNS2025015 - Smit Thakkar
+
+2.) created comparative_study.txt 
+
+  ~ MNS2025022 - Abhikumar Parsaniya
+
+3.)created sign.c
+
+  ~ MNS2025020 - Alekhya China
+
+4.) created task1.c
+
+  ~ MNS2025006 - Sanskar Agarwal
