@@ -12,6 +12,7 @@ Task contributors and details:
 
   ~ MNS2025020 - Alekhya China
 
-4.) created task1.c
+4.) created Algorithms_List.c
 
   ~ MNS2025006 - Sanskar Agarwal
+
