@@ -1,0 +1,83 @@
+# **Task 4: Comparative Study of Post-Quantum and Classical Cryptography**
+
+## **1. Key and Ciphertext/Signature Sizes**
+
+| **Algorithm**    | **Public Key (bytes)** | **Private Key (bytes)** | **Ciphertext / Signature (bytes)** |
+| ---------------- | ---------------------- | ----------------------- | ---------------------------------- |
+| RSA-2048         | 256                    | 1200                    | 256 (signature)                    |
+| ECDSA P-256      | 64                     | 32                      | 72 (signature)                     |
+| Kyber512 (KEM)   | 1184                   | 2400                    | 1088 (ciphertext)                  |
+| Dilithium2 (SIG) | 1408                   | 2560                    | 2420 (signature)                   |
+| Falcon-512 (SIG) | 896                    | 1300                    | 680 (signature)                    |
+
+### **Observation**
+
+* Post-quantum algorithms generally require **larger keys and ciphertexts/signatures** than classical RSA or ECC schemes.
+* RSA offers a moderate ciphertext size but a **significantly larger private key**.
+* **Kyber512** supports efficient quantum-safe key exchange, while **Dilithium2** and **Falcon-512** provide secure digital signatures suitable for post-quantum environments.
+
+---
+
+## **2. Execution Time Comparison (Representative Values)**
+
+| **Operation**              | **RSA-2048 (ms)** | **ECDSA P-256 (ms)** | **Kyber512 (ms)** | **Dilithium2 (ms)** |
+| -------------------------- | ----------------- | -------------------- | ----------------- | ------------------- |
+| Key Generation             | 250               | 5                    | 3.0               | 10.0                |
+| Encryption / Encapsulation | 2                 | —                    | 1.0               | —                   |
+| Decryption / Decapsulation | 10                | —                    | 1.0               | —                   |
+| Signing                    | 8                 | 3                    | —                 | 6.0                 |
+| Verification               | 2                 | 2                    | —                 | 4.0                 |
+
+Observation
+
+* **Kyber512** demonstrates the fastest key generation and exchange operations among all algorithms.
+* **Dilithium2** achieves efficient signing and verification while maintaining quantum resistance.
+* **RSA** remains computationally expensive due to large integer arithmetic during key generation.
+
+---
+
+## **3. Trade-Offs Between Security, Performance, and Size**
+
+| **Aspect**      |   Classical (RSA / ECC).       | **Post-Quantum (Kyber / Dilithium / Falcon)** |
+| --------------- | ------------------------------ | --------------------------------------------- |
+| Security        | Vulnerable to quantum attacks  | Resistant to quantum attacks                  |
+| Key Size        | Smaller (ECC) / Moderate (RSA) | Larger keys and signatures                    |
+| Performance     | ECC fast, RSA moderate         | KEMs very fast, signatures moderately fast    |
+| Deployment Ease | Mature and hardware-optimized  | Emerging; requires more memory and bandwidth  |
+
+### **Insight**
+
+Post-quantum schemes ensure **quantum-safe security** but introduce **larger key sizes** and **slightly higher computational costs**. These trade-offs are justified by the need to protect sensitive data against future quantum threats.
+
+---
+
+## **4. Hybrid Cryptographic Approach**
+
+To ensure a smooth transition to quantum-safe systems, many implementations adopt **hybrid cryptography**, combining classical and post-quantum algorithms.
+
+### **Example Hybrid Design**
+
+* **Key Exchange:** Kyber512 (Post-Quantum)
+* **Signature:** ECDSA P-256 (Classical)
+
+**Advantages:**
+
+1. Provides both **classical and quantum-resilient security**.
+2. Maintains compatibility with current infrastructure.
+3. Facilitates a **gradual migration** to full post-quantum systems.
+
+```
+        Alice                              Bob
+   -------------------               -------------------
+   Generate ECC signature keys        Verify ECC signature
+   Generate Kyber KEM keypair         Encapsulate shared secret
+   Sign + send ciphertext             Decapsulate to recover secret
+```
+
+---
+
+## **5. Conclusion**
+
+* **Kyber512** and **Dilithium2** represent practical post-quantum cryptographic solutions, balancing **performance** and **quantum resistance**.
+* While PQC algorithms demand **larger key and signature sizes**, the resulting **security advantages** outweigh these costs.
+* **Hybrid cryptography**, integrating classical and post-quantum methods, offers the most feasible short-term approach — enabling a **secure, compatible, and future-ready transition** toward quantum-safe communication systems.
