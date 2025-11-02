@@ -165,3 +165,15 @@ http://localhost:5000
 ```
 
 🎉 You now have a working real-time private chat app with login, registration, and database persistence!
+
+## Screen Sort
+
+<img width="826" height="389" alt="Screenshot 2025-11-02 at 11 36 39 PM" src="https://github.com/user-attachments/assets/eb0e0443-2e28-4ebb-b102-224ddf4fd72b" />
+
+<img width="421" height="418" alt="Screenshot 2025-11-02 at 11 37 52 PM" src="https://github.com/user-attachments/assets/924250e7-4ff8-4804-9159-548f97dcd359" />
+
+<img width="888" height="411" alt="Screenshot 2025-11-02 at 11 38 45 PM" src="https://github.com/user-attachments/assets/ec469b86-9bd6-4e27-826c-085ef00cae5c" />
+
+
+
+
