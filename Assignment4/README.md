@@ -20,8 +20,13 @@ This project is a **Next.js 16** web application styled with **TailwindCSS 4**, 
 
 ```
 assignment4/
-│── src/              # Main Next.js source code
-│── public/           # Public assets
+│── src/
+app/
+layout.js
+pages.js
+global.css            # Main Next.js source code
+│── public/
+rc4.js                # Public assets
 │── rc4.c             # RC4 encryption C program
 │── package.json      # Project configuration
 │── jsconfig.json     # Path aliasing
@@ -32,6 +37,7 @@ assignment4/
 │── .next/            # Auto-generated Next.js build directory
 ```
 
+Note: node_modules and netligy.toml, .next/ are needed to be auto-generated. 
 ---
 
 ## 🛠️ Installation
