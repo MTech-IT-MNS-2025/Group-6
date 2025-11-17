@@ -104,7 +104,8 @@ npm run build
 *Add screenshots like:*
 
 ```
-![Home Page](./public/ass4.png)
+<img width="973" height="667" alt="ass4" src="https://github.com/user-attachments/assets/5aeb6777-c276-4e8d-819e-a6842d758d3e" />
+
 ```
 
 ---
