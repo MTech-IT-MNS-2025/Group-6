@@ -16,7 +16,7 @@ Commands to Run the Project:
    node server.js
 
 3. Open in browser:
-   http://localhost:3000
+   http://localhost:3000 (Although my project is not running successfully)
 
    
 
@@ -28,5 +28,5 @@ emcc myProg.c -O3 -s WASM=1 -s EXPORTED_FUNCTIONS="['_modexp']" -s EXPORTED_RUNT
 
 Command Used to Calculate the MD5 Digest (During Lab Test):
 
-certutil -hashfile myProg.c MD5
+certutil -hashfile dh-lab MD5
 
