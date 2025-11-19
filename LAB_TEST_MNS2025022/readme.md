@@ -10,7 +10,7 @@ This project implements the **Diffie–Hellman Key Exchange** using:
 
 - **C program (`myProg.c`)** compiled to WebAssembly using **Emscripten**
 - **Frontend (HTML/JS)** to collect inputs and compute client-side values
-- **Backend (Express.js)** to compute server-side values
+- **Backend (Node.js + Express.js)** to compute server-side values
 - **Client and server both use WASM** to compute modular exponentiation efficiently and consistently
 
 The goal is for both client and server to compute the same shared secret:
