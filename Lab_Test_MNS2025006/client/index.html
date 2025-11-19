@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diffie-Hellman Client</title>
+</head>
+<body>
+<h2>Client Side</h2>
+
+<p>Enter p and g:</p>
+<input id="p" placeholder="Enter p">
+<input id="g" placeholder="Enter g">
+
+<button onclick="computeX()">Send to Server</button>
+
+<h3>Results:</h3>
+<p>Shared Key K: <span id="K"></span></p>
+<p>Server Value y: <span id="y"></span></p>
+<p>Client Secret a: <span id="a"></span></p>
+
+<script src="script.js"></script>
+</body>
+</html>
