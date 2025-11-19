@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Diffie-Hellman Key Exchange</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .container { max-width: 600px; margin: auto; }
+    label { display: block; margin-top: 10px; }
+    input { width: 100%; padding: 6px; margin-top: 4px; }
+    button { margin-top: 15px; padding: 8px 16px; }
+    .output { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+    code { font-family: Consolas, monospace; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Diffie-Hellman Shared Secret Demo</h1>
+
+    <form id="dh-form">
+      <label>
+        Prime p:
+        <input type="number" id="p" required>
+      </label>
+      <label>
+        Generator g:
+        <input type="number" id="g" required>
+      </label>
+      <button type="submit">Establish Shared Key</button>
+    </form>
+
+    <div class="output">
+      <h3>Client Values</h3>
+      <p>a (client private): <code id="val-a">-</code></p>
+      <p>x = g^a mod p: <code id="val-x">-</code></p>
+
+      <h3>Server Response</h3>
+      <p>y = g^b mod p: <code id="val-y">-</code></p>
+      <p>Shared Key K: <code id="val-K">-</code></p>
+
+      <h3>Final Display</h3>
+      <p>&lt;K, y, a&gt; = <code id="triple"></code></p>
+    </div>
+  </div>
+
+  <script src="myProg.js"></script>
+  <script src="client.js"></script>
+</body>
+</html>
+
