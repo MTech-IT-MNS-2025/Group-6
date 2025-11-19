@@ -1,4 +1,23 @@
 
+### Folder Structure
+```
+labtest/
+│
+├── README.md
+│
+├── client/
+│   ├── index.html
+│   ├── script.js
+│   ├── myProg.c
+│   ├── myProg.wasm
+│
+├── server/
+│   ├── server.js
+│   ├── myProg.c
+│   ├── myProg.wasm
+│   ├── package.json
+│   ├── package-lock.json
+ ```
 ### 1. Platform Used:
    - Ubuntu 
 
