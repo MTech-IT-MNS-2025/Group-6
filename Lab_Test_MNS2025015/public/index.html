@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Diffie-Hellman (Client) — WASM assisted</title>
+  <style>
+    body{font-family: Inter, system-ui, sans-serif;max-width:900px;margin:28px auto;padding:12px}
+    label{display:block;margin-top:12px}
+    input[type=text]{width:100%;padding:8px;font-family:monospace}
+    button{margin-top:12px;padding:10px 16px;border-radius:8px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .card{padding:14px;border-radius:10px;background:#f7f7f8;border:1px solid #e6e6e6}
+    pre{background:#0f1720;color:#e6eef8;padding:12px;border-radius:8px;overflow:auto}
+  </style>
+</head>
+<body>
+  <h1>Diffie-Hellman key exchange — Client (WASM)</h1>
+  <p>This single-file frontend uses a <code>myProg.wasm</code> module (compiled from <code>myProg.c</code>) to perform modular exponentiation where available, and falls back to a JS BigInt implementation otherwise.</p>
+
+  <div class="card">
+    <label>Prime p (decimal)</label>
+    <input id="pInput" type="text" value="23" />
+
+    <label>Generator g (decimal)</label>
+    <input id="gInput" type="text" value="5" />
+
+    <div class="grid">
+      <div>
+        <button id="clientCompute">Compute & Send to Server</button>
+      </div>
+      <div>
+        <button id="resetBtn">Reset</button>
+      </div>
+    </div>
+
+    <p style="margin-top:12px">WASM module status: <span id="wasmStatus">loading...</span></p>
+  </div>
+
+  <h2>Results (client-side)</h2>
+  <div class="card">
+    <p><strong>Client secret (a):</strong> <span id="aOut">-</span></p>
+    <p><strong>Client public (x = g^a mod p):</strong> <span id="xOut">-</span></p>
+    <p><strong>Server public (y):</strong> <span id="yOut">-</span></p>
+    <p><strong>Shared key (K):</strong> <span id="KOut">-</span></p>
+    <p><strong>Server response raw:</strong></p>
+    <pre id="respOut">-</pre>
+  </div>
+
+  <h2>Notes</h2>
+  <div class="card">
+    <ul>
+      <li>Place <code>myProg.wasm</code> (compiled from <code>myProg.c</code>) in the same directory as this HTML file.</li>
+      <li>This page expects the server endpoint <code>POST /api/dh</code> which accepts JSON body <code>{ g, p, x }</code> and returns JSON <code>{ y, K }</code> (both as decimal strings). Adjust the endpoint URL in the JS if your server uses another path.</li>
+    </ul>
+  </div>
+
+  <script>
+  // ---------- Helper: BigInt modular exponentiation (fallback) ----------
+  function modPowBigInt(base, exp, mod) {
+    base = BigInt(base) % BigInt(mod);
+    exp = BigInt(exp);
+    mod = BigInt(mod);
+    let result = 1n;
+    while (exp > 0n) {
+      if (exp & 1n) result = (result * base) % mod;
+      base = (base * base) % mod;
+      exp >>= 1n;
+    }
+    return result;
+  }
+
+  // Secure random BigInt in range [1, p-2]
+  function randomBigIntBelow(maxExclusive) {
+    // maxExclusive is BigInt
+    const max = BigInt(maxExclusive);
+    if (max <= 2n) return 1n;
+    const bits = max.toString(2).length;
+    const bytes = Math.ceil(bits / 8);
+    const buf = new Uint8Array(bytes);
+    let candidate;
+    do {
+      crypto.getRandomValues(buf);
+      candidate = 0n;
+      for (let i = 0; i < buf.length; i++) {
+        candidate = (candidate << 8n) + BigInt(buf[i]);
+      }
+    } while (candidate >= max || candidate === 0n);
+    return candidate;
+  }
+
+  // ---------- WASM loader (tries to use exported modexp) ----------
+  let wasmExports = null;
+  async function loadWasm() {
+    const status = document.getElementById('wasmStatus');
+    try {
+      // attempt instantiateStreaming - server must serve .wasm with correct MIME
+      const resp = await fetch('myProg.wasm');
+      if (!resp.ok) throw new Error('Could not fetch myProg.wasm');
+      const bytes = await resp.arrayBuffer();
+      const wasmModule = await WebAssembly.instantiate(bytes, {});
+      wasmExports = wasmModule.instance.exports;
+      status.textContent = 'loaded';
+      // heuristics: exported name could be 'modexp' or 'powmod' or similar.
+      const names = Object.keys(wasmExports);
+      status.textContent += ` (exports: ${names.join(', ')})`;
+    } catch (e) {
+      console.warn('WASM load failed, falling back to JS modPow:', e);
+      document.getElementById('wasmStatus').textContent = 'failed - using JS fallback';
+      wasmExports = null;
+    }
+  }
+
+  // Helper to call WASM modexp if present. We don't assume its calling convention; provide two strategies.
+  function wasmModExp(base, exp, mod) {
+    // Prefer an exported function that takes (base, exp, mod) and returns BigInt (if compiled with wasi or emscripten)
+    if (!wasmExports) return null;
+
+    // If the wasm export is a JS function that accepts three numbers and returns number -> risk of overflow.
+    if (typeof wasmExports.modexp === 'function') {
+      try {
+        // call and convert to BigInt
+        const r = wasmExports.modexp(Number(base), Number(exp), Number(mod));
+        return BigInt(r);
+      } catch (e) { console.warn('wasm modexp call failed:', e); }
+    }
+
+    // Look for other plausible names
+    for (const name of ['powmod', 'pow_mod', 'mod_pow']) {
+      if (typeof wasmExports[name] === 'function') {
+        try {
+          const r = wasmExports[name](Number(base), Number(exp), Number(mod));
+          return BigInt(r);
+        } catch (e) { console.warn(`wasm ${name} call failed:`, e); }
+      }
+    }
+
+    // If Emscripten-style Module, might expose _modexp and memory-based interface: not handled here.
+    return null; // indicate not available
+  }
+
+  // ---------- Main client flow ----------
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    document.getElementById('aOut').textContent = '-';
+    document.getElementById('xOut').textContent = '-';
+    document.getElementById('yOut').textContent = '-';
+    document.getElementById('KOut').textContent = '-';
+    document.getElementById('respOut').textContent = '-';
+  });
+
+  document.getElementById('clientCompute').addEventListener('click', async () => {
+    const pStr = document.getElementById('pInput').value.trim();
+    const gStr = document.getElementById('gInput').value.trim();
+    if (!pStr || !gStr) return alert('Enter p and g');
+    const p = BigInt(pStr);
+    const g = BigInt(gStr);
+
+    // 2. choose random a in Z_p^*
+    const a = randomBigIntBelow(p - 1n); // in [1, p-2]
+    document.getElementById('aOut').textContent = a.toString();
+
+    // 3. compute x = g^a mod p using wasm if possible
+    let xBig;
+    if (wasmExports) {
+      const w = wasmModExp(g, a, p);
+      if (w !== null) xBig = w;
+    }
+    if (xBig === undefined || xBig === null) {
+      // fallback
+      xBig = modPowBigInt(g, a, p);
+    }
+    document.getElementById('xOut').textContent = xBig.toString();
+
+    // 4. Send <g,p,x> to server AFTER response is received from server? The user's wording says "AFTER RESPONSE IS RECEIVED FROM THE SERVER" — assumed they mean: send to server and wait response. We'll POST and await.
+
+    const payload = { g: g.toString(), p: p.toString(), x: xBig.toString() };
+    document.getElementById('wasmStatus').textContent = document.getElementById('wasmStatus').textContent + ' | sending to server...';
+
+    try {
+      const res = await fetch('/api/dh', {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      document.getElementById('respOut').textContent = JSON.stringify(data, null, 2);
+
+      // Expecting server returns { y: '<decimal>', K: '<decimal>' }
+      const yStr = data.y ?? data.Y ?? data.serverPublic ?? null;
+      const KserverStr = data.K ?? data.sharedKey ?? null;
+
+      if (!yStr) {
+        document.getElementById('yOut').textContent = 'missing in server response';
+      } else {
+        document.getElementById('yOut').textContent = yStr.toString();
+      }
+
+      // 5. Display <K, y, a>. Compute client's K from y and a (sanity check) using wasm or fallback
+      let yBig = yStr ? BigInt(yStr) : null;
+      let Kclient;
+      if (yBig !== null && wasmExports) {
+        const w2 = wasmModExp(yBig, a, p);
+        if (w2 !== null) Kclient = w2;
+      }
+      if (Kclient === undefined || Kclient === null) {
+        if (yBig !== null) Kclient = modPowBigInt(yBig, a, p);
+      }
+
+      document.getElementById('KOut').textContent = Kclient ? Kclient.toString() : (KserverStr ?? 'unknown');
+
+    } catch (err) {
+      document.getElementById('respOut').textContent = 'Network or server error: ' + err;
+    }
+  });
+
+  // Load wasm on startup
+  loadWasm();
+  </script>
+</body>
+</html>
