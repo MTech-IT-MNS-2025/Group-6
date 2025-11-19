@@ -1,8 +1,6 @@
 
 ### Folder Structure
 ```
-labtest/
-│
 ├── README.md
 │
 ├── client/
