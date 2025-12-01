@@ -9,15 +9,19 @@ const MessageSchema = new mongoose.Schema({
         type: String, 
         required: true 
     },
-    text: { 
-        type: String, 
-        required: true 
+    // --- CHANGE STARTS HERE ---
+    // We replace 'text' with 'content' to store the encryption data
+    content: { 
+        kemCiphertext: String,    // The encapsulated key
+        aesIv: String,            // The lock setting (IV)
+        encryptedMessage: String  // The actual message content
     },
+    // --- CHANGE ENDS HERE ---
     timestamp: { 
         type: Date, 
         default: Date.now 
     }
 });
 
-// This line prevents Mongoose from redefining the model if this file is re-run
+// Prevent "Model already compiled" errors in Next.js
 export default mongoose.models.Message || mongoose.model('Message', MessageSchema);

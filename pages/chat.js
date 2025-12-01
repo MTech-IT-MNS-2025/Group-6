@@ -2,7 +2,6 @@ import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/router';
 import io from 'socket.io-client';
 import Cookies from 'js-cookie';
-// Ensure this path matches your file structure exactly
 import { encryptMessage, decryptMessage } from '../utils/crypto';
 
 let socket;
@@ -14,6 +13,7 @@ export default function Chat() {
   const [isKeyLoaded, setIsKeyLoaded] = useState(false);
   const [recipient, setRecipient] = useState(''); 
   const [currentUser, setCurrentUser] = useState('');
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   const router = useRouter();
   const messagesEndRef = useRef(null);
@@ -45,7 +45,6 @@ export default function Chat() {
     const initSocket = async () => {
       await fetch('/api/socket'); 
       
-      // THIS IS THE CRITICAL PART - SENDING THE USERNAME
       socket = io({
           query: { username: userFromToken } 
       });
@@ -65,19 +64,66 @@ export default function Chat() {
     return () => { if (socket) socket.disconnect(); };
   }, [router]);
 
+  // --- 2. LOAD CHAT HISTORY WHEN RECIPIENT CHANGES ---
+  useEffect(() => {
+    if (!recipient || !currentUser || !isKeyLoaded) return;
 
-  // --- 2. DECRYPT MESSAGES ---
+    const loadChatHistory = async () => {
+      setIsLoadingHistory(true);
+      try {
+        const res = await fetch(`/api/messages?user1=${currentUser}&user2=${recipient}`);
+        
+        if (!res.ok) {
+          throw new Error('Failed to fetch chat history');
+        }
+
+        const history = await res.json();
+        
+        // Transform history to match our message format
+        const formattedHistory = history.map(msg => ({
+            sender: msg.sender,
+            receiver: msg.receiver,
+            // FIX: Use 'content' directly. Do NOT JSON.parse it because schema now stores it as an object.
+            content: msg.content, 
+            timestamp: new Date(msg.timestamp),
+            // Mark as encrypted so the decryption effect picks it up
+            isEncrypted: msg.sender !== currentUser 
+        }));
+
+        setMessages(formattedHistory);
+      } catch (error) {
+        console.error('Error loading chat history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    // Small debounce to prevent spamming while typing
+    const timeoutId = setTimeout(() => {
+        loadChatHistory();
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [recipient, currentUser, isKeyLoaded]);
+
+  // --- 3. DECRYPT MESSAGES ---
   useEffect(() => {
     if (!isKeyLoaded || !privateKey) return;
 
     const decryptAll = async () => {
         const decryptedPromises = messages.map(async (msg) => {
-            if (msg.isEncrypted && !msg.text && msg.sender !== currentUser) {
+            // Only decrypt if it is marked encrypted AND has content AND we haven't decrypted it yet
+            if (msg.isEncrypted && msg.content && !msg.text) {
+                // If I sent it, I can't decrypt it (I don't have Bob's key)
+                if (msg.sender === currentUser) {
+                    return { ...msg, text: "(Sent Encrypted)", isEncrypted: false };
+                }
+
                 try {
                     const decryptedText = await decryptMessage(msg.content, privateKey);
                     return { ...msg, text: decryptedText, isEncrypted: false };
                 } catch (e) {
-                    console.error("Decryption failed", e);
+                    // console.error("Decryption failed", e);
                     return { ...msg, text: "⚠️ Decryption Failed", isEncrypted: false };
                 }
             }
@@ -85,6 +131,7 @@ export default function Chat() {
         });
         
         const results = await Promise.all(decryptedPromises);
+        // Only update state if something actually changed to avoid infinite loops
         if (JSON.stringify(results) !== JSON.stringify(messages)) {
             setMessages(results);
         }
@@ -92,18 +139,18 @@ export default function Chat() {
     decryptAll();
   }, [messages, isKeyLoaded, privateKey, currentUser]);
 
-  // --- 3. AUTO SCROLL ---
+  // --- 4. AUTO SCROLL ---
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // --- 4. SEND MESSAGE ---
+  // --- 5. SEND MESSAGE ---
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (!message || !recipient) return;
 
     try {
-        // Fetch Key
+        // Fetch Recipient's Public Key
         const res = await fetch(`/api/user/${recipient}`);
         if (!res.ok) throw new Error("User not found");
         const { pqcPublicKey } = await res.json();
@@ -111,7 +158,9 @@ export default function Chat() {
         // Encrypt
         const payload = await encryptMessage(pqcPublicKey, message);
 
-        // Send
+        // Send via Socket
+        // FIX: Only emit via socket. The server handles saving to DB. 
+        // Do NOT call fetch('/api/messages/save') here.
         socket.emit('send_message', {
             sender: currentUser,
             receiver: recipient,
@@ -119,7 +168,7 @@ export default function Chat() {
             timestamp: new Date()
         });
 
-        // Show locally
+        // Show locally immediately
         setMessages((prev) => [...prev, { 
             sender: currentUser, 
             text: message, 
@@ -145,7 +194,7 @@ export default function Chat() {
             />
             <button 
                 onClick={() => setIsKeyLoaded(true)}
-                className="mt-6 bg-green-600 px-8 py-3 rounded font-bold"
+                className="mt-6 bg-green-600 px-8 py-3 rounded font-bold hover:bg-green-700"
             >
                 Load Key
             </button>
@@ -155,27 +204,44 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-100">
-      <header className="bg-blue-700 p-4 text-white flex justify-between">
+      <header className="bg-blue-700 p-4 text-white flex justify-between items-center shadow-md">
         <h1 className="font-bold">Chat: {currentUser}</h1>
-        <button onClick={() => window.location.reload()} className="bg-red-500 px-3 rounded">Logout</button>
+        <button onClick={() => window.location.reload()} className="bg-red-500 px-3 py-1 rounded hover:bg-red-600 text-sm">Logout</button>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {isLoadingHistory && (
+          <div className="text-center text-gray-500 text-xs mt-2">Loading chat history...</div>
+        )}
+        
         {messages.map((msg, index) => (
           <div key={index} className={`flex ${msg.sender === currentUser ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-xs p-3 rounded-lg shadow-sm ${msg.sender === currentUser ? 'bg-blue-600 text-white' : 'bg-white'}`}>
-              <p className="text-xs font-bold opacity-75">{msg.sender}</p>
-              <p>{msg.text || (msg.isEncrypted ? "🔒 Decrypting..." : msg.text)}</p>
+            <div className={`max-w-xs md:max-w-md p-3 rounded-lg shadow-sm ${msg.sender === currentUser ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-200 rounded-bl-none'}`}>
+              <p className="text-xs font-bold opacity-75 mb-1">{msg.sender}</p>
+              <p className="text-sm break-words">{msg.text || (msg.isEncrypted ? "🔒 Decrypting..." : msg.text)}</p>
+              <span className="text-[10px] opacity-50 block text-right mt-1">
+                {new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              </span>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="p-4 bg-white shadow-lg flex gap-2">
-        <input className="w-1/4 p-3 border rounded" placeholder="Recipient" value={recipient} onChange={(e) => setRecipient(e.target.value)} />
-        <input className="flex-1 p-3 border rounded" placeholder="Message" value={message} onChange={(e) => setMessage(e.target.value)} />
-        <button type="submit" className="bg-blue-600 text-white px-6 rounded">Send</button>
+      <form onSubmit={handleSendMessage} className="p-4 bg-white shadow-lg flex gap-2 border-t">
+        <input 
+          className="w-1/3 md:w-1/4 p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
+          placeholder="Recipient" 
+          value={recipient} 
+          onChange={(e) => setRecipient(e.target.value)} 
+        />
+        <input 
+          className="flex-1 p-3 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500" 
+          placeholder="Message" 
+          value={message} 
+          onChange={(e) => setMessage(e.target.value)} 
+        />
+        <button type="submit" className="bg-blue-600 text-white px-6 py-3 rounded font-bold hover:bg-blue-700 transition">Send</button>
       </form>
     </div>
   );

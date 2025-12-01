@@ -1,39 +1,27 @@
-import dbConnect from '../../lib/dbConnect';
+// FIX: Change 'utils' to 'lib' (based on your file structure)
+import dbConnect from '../../lib/dbConnect'; 
 import Message from '../../models/Message';
 
 export default async function handler(req, res) {
-  // We only care about GET requests for this route
-  if (req.method === 'GET') {
-    try {
-      // Get the two users from the query string
-      const { user1, user2 } = req.query;
+  if (req.method !== 'GET') return res.status(405).end();
 
-      if (!user1 || !user2) {
-        return res.status(400).json({ message: 'Missing user1 or user2 query parameters' });
-      }
+  try {
+    await dbConnect();
+    const { user1, user2 } = req.query;
 
-      // Connect to the database
-      await dbConnect();
+    if (!user1 || !user2) return res.status(400).json({ error: 'Missing users' });
 
-      // Find all messages
-      // where (sender is user1 AND receiver is user2)
-      // OR (sender is user2 AND receiver is user1)
-      const messages = await Message.find({
-        $or: [
-          { sender: user1, receiver: user2 },
-          { sender: user2, receiver: user1 },
-        ],
-      }).sort({ timestamp: 'asc' }); // Sort by oldest first
+    // Fetch and Sort
+    const messages = await Message.find({
+      $or: [
+        { sender: user1, receiver: user2 },
+        { sender: user2, receiver: user1 }
+      ]
+    }).sort({ timestamp: 1 });
 
-      // Send the messages back as JSON
-      res.status(200).json(messages);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Internal Server Error' });
-    }
-  } else {
-    // Handle any other HTTP method
-    res.setHeader('Allow', ['GET']);
-    res.status(405).end(`Method ${req.method} Not Allowed`);
+    res.status(200).json(messages);
+  } catch (error) {
+    console.error("Fetch Error:", error);
+    res.status(500).json({ error: 'Server Error' });
   }
 }

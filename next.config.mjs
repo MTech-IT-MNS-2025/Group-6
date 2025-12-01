@@ -8,7 +8,8 @@ const nextConfig = {
         ...config.resolve.fallback,
         fs: false,    // Ignore file system
         path: false,  // Ignore file paths
-        crypto: false // Ignore Node crypto (use browser crypto instead)
+        crypto: false, // Ignore Node crypto (use browser crypto instead)
+        devIndicator:false
       };
     }
 
